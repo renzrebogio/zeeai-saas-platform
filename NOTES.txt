@@ -1,0 +1,5 @@
+FRONTEND
+BACKEND:
+express dotenv cors axios cloudinary multer
+
+database: neon/postgres

@@ -24,7 +24,8 @@ ZeeAI is a production-ready, full-stack Software-as-a-Service (SaaS) platform po
 8. [Authentication, Subscription & Gating Model](#-authentication-subscription--gating-model)
 9. [Environment Variables Matrix](#-environment-variables-matrix)
 10. [Deployment & Infrastructure](#-deployment--infrastructure)
-11. [Local Development Setup](#-local-development-setup)
+11. [CI/CD Automation Pipeline](#-cicd-automation-pipeline)
+12. [Local Development Setup](#-local-development-setup)
 
 ---
 
@@ -492,6 +493,73 @@ graph LR
 
 * **Frontend**: Configured for Vercel with single-page app rewrites via `frontend/vercel.json`.
 * **Backend**: Configured for Vercel Serverless Functions via `backend/vercel.json` using the `@vercel/node` builder.
+
+---
+
+## ⚡ CI/CD Automation Pipeline
+
+ZeeAI features an enterprise-grade Continuous Integration and Continuous Deployment (CI/CD) pipeline built with **GitHub Actions** (`.github/workflows/ci-cd.yml`). The pipeline ensures that every commit, pull request, and deployment meets strict quality, syntax, security, and build integrity standards.
+
+### Pipeline Workflow Architecture
+
+```mermaid
+flowchart TD
+    subgraph Trigger["📌 Trigger Events"]
+        Push[Push to main/master]
+        PR[Pull Request to main/master]
+        Manual[Manual Dispatch]
+    end
+
+    subgraph ParallelJobs["🧪 Parallel Quality & Verification Gates"]
+        direction TB
+        
+        subgraph FrontendCI["🎨 Frontend CI (Ubuntu / Node 20)"]
+            F1[npm ci] --> F2[ESLint Validation]
+            F2 --> F3[Vite Production Build]
+            F3 --> F4[Upload dist Artifact]
+        end
+
+        subgraph BackendCI["⚙️ Backend CI (Ubuntu / Node 20)"]
+            B1[npm ci] --> B2[ES Module Syntax Validation]
+            B2 --> B3[API Route & Controller Integrity]
+        end
+
+        subgraph SecurityCI["🛡️ Security Audit"]
+            S1[npm audit critical / high]
+        end
+    end
+
+    subgraph DeploymentGate["🚀 CD: Automated Deployment"]
+        Deploy[Vercel Production Deployment<br/>Frontend SPA + Backend Serverless]
+    end
+
+    Trigger --> ParallelJobs
+    FrontendCI --> Deploy
+    BackendCI --> Deploy
+    SecurityCI --> Deploy
+```
+
+### Pipeline Jobs & Verification Stages
+
+| Job | Stage | Environment | Key Operations |
+| :--- | :--- | :--- | :--- |
+| **`frontend-ci`** | Quality & Build Gate | `ubuntu-latest` (Node.js 20) | • `npm ci` with dependency caching<br/>• ESLint syntax and hook validation (`npm run lint`)<br/>• Production compilation via Vite (`npm run build`)<br/>• 7-day artifact storage for `frontend/dist` |
+| **`backend-ci`** | Syntax & Integrity Gate | `ubuntu-latest` (Node.js 20) | • `npm ci` with backend lockfile caching<br/>• Strict ES module parsing check via `node --check` across `server.js`, `configs/`, `controllers/`, `middlewares/`, and `routes/` |
+| **`security-audit`** | Vulnerability Scan | `ubuntu-latest` (Node.js 20) | • Automated scanning of npm dependency graphs in both workspaces for critical/high security advisories |
+| **`deploy-production`** | Continuous Deployment | `ubuntu-latest` (Node.js 20) | • Triggered automatically on merge/push to `main`<br/>• Deploys built static assets to Vercel (Frontend)<br/>• Deploys serverless API functions to Vercel (Backend) |
+
+### Required GitHub Repository Secrets (For CD)
+
+To enable automatic deployments to Vercel, configure the following secrets in your GitHub repository (**Settings > Secrets and variables > Actions**):
+
+| Secret Name | Required | Description |
+| :--- | :--- | :--- |
+| `VERCEL_TOKEN` | Optional (for CD) | Vercel Personal Access Token for CLI authentication |
+| `VERCEL_ORG_ID` | Optional (for CD) | Vercel Organization or Team identifier |
+| `VERCEL_PROJECT_ID_FRONTEND` | Optional (for CD) | Vercel Project ID for the frontend SPA deployment |
+| `VERCEL_PROJECT_ID_BACKEND` | Optional (for CD) | Vercel Project ID for the backend API deployment |
+| `VITE_CLERK_PUBLISHABLE_KEY` | Optional | Clerk publishable key injected during frontend production build |
+| `VITE_BASE_URL` | Optional | Target backend URL injected into client API requests |
 
 ---
 

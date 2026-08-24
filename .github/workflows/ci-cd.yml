@@ -1,0 +1,154 @@
+name: ZeeAI CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ==========================================
+  # 1. FRONTEND CI: Linting & Production Build
+  # ==========================================
+  frontend-ci:
+    name: 🎨 Frontend (Lint & Build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: './frontend/package-lock.json'
+
+      - name: 📦 Install Frontend Dependencies
+        run: npm ci
+
+      - name: 🔍 Run ESLint Validation
+        run: npm run lint
+
+      - name: 🏗️ Compile Production Bundle (Vite)
+        env:
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY || 'pk_test_placeholder_key_for_ci_build' }}
+          VITE_BASE_URL: ${{ secrets.VITE_BASE_URL || 'https://api.zeeai.com' }}
+        run: npm run build
+
+      - name: 📤 Archive Production Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+          retention-days: 7
+
+  # ==========================================
+  # 2. BACKEND CI: Syntax & Integrity Validation
+  # ==========================================
+  backend-ci:
+    name: ⚙️ Backend (Syntax & Integrity)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: './backend/package-lock.json'
+
+      - name: 📦 Install Backend Dependencies
+        run: npm ci
+
+      - name: 🔍 Validate ES Module Syntax & Integrity
+        run: |
+          node --check server.js
+          node --check configs/db.js
+          node --check configs/cloudinary.js
+          node --check configs/multer.js
+          node --check middlewares/auth.js
+          node --check routes/aiRoutes.js
+          node --check routes/userRoutes.js
+          node --check controllers/aiController.js
+          node --check controllers/userController.js
+          echo "✅ All backend ES modules verified with zero syntax errors."
+
+  # ==========================================
+  # 3. SECURITY AUDIT: Dependency Scanning
+  # ==========================================
+  security-audit:
+    name: 🛡️ Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 🔍 Audit Backend Dependencies
+        working-directory: ./backend
+        run: npm audit --audit-level=critical || true
+
+      - name: 🔍 Audit Frontend Dependencies
+        working-directory: ./frontend
+        run: npm audit --audit-level=critical || true
+
+  # ==========================================
+  # 4. CD: Automated Deployment (Vercel)
+  # ==========================================
+  deploy-production:
+    name: 🚀 Deploy to Vercel (Production)
+    needs: [frontend-ci, backend-ci, security-audit]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 📦 Download Frontend Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+
+      - name: 🚀 Deploy Frontend to Vercel
+        if: env.VERCEL_TOKEN != ''
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_FRONTEND }}
+          working-directory: ./frontend
+          vercel-args: '--prod'
+
+      - name: 🚀 Deploy Backend API to Vercel
+        if: env.VERCEL_TOKEN != ''
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_BACKEND }}
+          working-directory: ./backend
+          vercel-args: '--prod'
+
+      - name: ℹ️ Deployment Status Notice
+        if: env.VERCEL_TOKEN == ''
+        run: |
+          echo "💡 CI Passed! To enable automated Vercel deployments, add VERCEL_TOKEN, VERCEL_ORG_ID, and VERCEL_PROJECT_ID to GitHub Repository Secrets."

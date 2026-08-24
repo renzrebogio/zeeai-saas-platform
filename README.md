@@ -576,7 +576,7 @@ To enable automatic deployments to Vercel, configure the following secrets in yo
 ### 1. Clone the Repository
 ```bash
 git clone <repository-url>
-cd "6. ZeeAI SaaS (PERN PROJ)"
+cd zeeai-saas-platform
 ```
 
 ### 2. Configure Backend
@@ -584,7 +584,7 @@ cd "6. ZeeAI SaaS (PERN PROJ)"
 cd backend
 npm install
 # Create .env and populate keys as shown in the Environment Variables Matrix
-npm run server
+npm start
 ```
 Backend will start on `http://localhost:3000`.
 

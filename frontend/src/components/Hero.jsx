@@ -1,236 +1,259 @@
-import React, { useState, useEffect } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useUser, useClerk } from "@clerk/clerk-react";
+import { motion, useInView } from "framer-motion";
 import {
-  ChevronLeft,
-  ChevronRight,
-  Users,
-  Zap,
-  Sparkles,
+  ArrowRight,
   PenTool,
+  Image as ImageIcon,
+  Layers,
+  Wand2,
+  FileCheck,
+  ChevronRight,
 } from "lucide-react";
+
+/* ---------------- Seamless Video Crossfade Background ---------------- */
+export const SeamlessVideo = ({
+  src,
+  className = "",
+  crossfadeDuration = 1.2,
+}) => {
+  const video1Ref = useRef(null);
+  const video2Ref = useRef(null);
+  const [activeVideo, setActiveVideo] = useState(1);
+
+  useEffect(() => {
+    const v1 = video1Ref.current;
+    const v2 = video2Ref.current;
+    if (!v1 || !v2) return;
+
+    const handleTimeUpdate1 = () => {
+      if (v1.duration && v1.currentTime >= v1.duration - crossfadeDuration) {
+        if (activeVideo === 1) {
+          v2.currentTime = 0;
+          v2.play().catch(() => {});
+          setActiveVideo(2);
+        }
+      }
+    };
+
+    const handleTimeUpdate2 = () => {
+      if (v2.duration && v2.currentTime >= v2.duration - crossfadeDuration) {
+        if (activeVideo === 2) {
+          v1.currentTime = 0;
+          v1.play().catch(() => {});
+          setActiveVideo(1);
+        }
+      }
+    };
+
+    v1.addEventListener("timeupdate", handleTimeUpdate1);
+    v2.addEventListener("timeupdate", handleTimeUpdate2);
+
+    return () => {
+      v1.removeEventListener("timeupdate", handleTimeUpdate1);
+      v2.removeEventListener("timeupdate", handleTimeUpdate2);
+    };
+  }, [activeVideo, crossfadeDuration]);
+
+  return (
+    <div className={`relative overflow-hidden ${className}`}>
+      <video
+        ref={video1Ref}
+        autoPlay
+        muted
+        playsInline
+        src={src}
+        className={`absolute inset-0 h-full w-full object-cover scale-105 transition-opacity duration-1000 ease-in-out ${
+          activeVideo === 1 ? "opacity-85" : "opacity-0"
+        }`}
+      />
+      <video
+        ref={video2Ref}
+        muted
+        playsInline
+        src={src}
+        className={`absolute inset-0 h-full w-full object-cover scale-105 transition-opacity duration-1000 ease-in-out ${
+          activeVideo === 2 ? "opacity-85" : "opacity-0"
+        }`}
+      />
+    </div>
+  );
+};
+
+/* ---------------- WordsPullUp ---------------- */
+export const WordsPullUp = ({ text, className = "", showAsterisk = false, style }) => {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true });
+  const words = text.split(" ");
+
+  return (
+    <div ref={ref} className={`inline-flex flex-wrap ${className}`} style={style}>
+      {words.map((word, i) => {
+        const isLast = i === words.length - 1;
+        return (
+          <motion.span
+            key={i}
+            initial={{ y: 30, opacity: 0 }}
+            animate={isInView ? { y: 0, opacity: 1 } : {}}
+            transition={{ duration: 0.7, delay: i * 0.09, ease: [0.16, 1, 0.3, 1] }}
+            className="inline-block relative"
+            style={{ marginRight: isLast ? 0 : "0.22em" }}
+          >
+            {word}
+            {showAsterisk && isLast && (
+              <span className="absolute top-[0.6em] -right-[0.32em] text-[0.3em] text-[#E1E0CC]/80 font-light">*</span>
+            )}
+          </motion.span>
+        );
+      })}
+    </div>
+  );
+};
+
+const toolHighlights = [
+  { label: "Article Studio", icon: PenTool, path: "/ai/write-article" },
+  { label: "Image Generation", icon: ImageIcon, path: "/ai/generate-images" },
+  { label: "Background Removal", icon: Layers, path: "/ai/remove-background" },
+  { label: "Object Inpainting", icon: Wand2, path: "/ai/remove-object" },
+  { label: "Resume Analysis", icon: FileCheck, path: "/ai/review-resume" },
+];
 
 const Hero = () => {
   const navigate = useNavigate();
-  const [currentSlide, setCurrentSlide] = useState(0);
+  const { user } = useUser();
+  const { openSignIn } = useClerk();
 
-  // Carousel data - you can customize these slides
-  const slides = [
-    {
-      title: "Create Amazing Content",
-      highlight: "AI Tools",
-      description:
-        "Transform your content creation with our suite of premium AI tools. Write articles, generate images, and enhance your workflow",
-      icon: <PenTool className="w-16 h-16 text-blue-600 mx-auto mb-4" />,
-      primaryBtn: "Start Creating Now!",
-      secondaryBtn: "Watch Demo",
-      primaryUrl: "/ai",
-    },
-    {
-      title: "Generate Stunning Images",
-      highlight: "AI Art",
-      description:
-        "Create breathtaking visuals and artwork with our advanced AI image generation. Perfect for social media, marketing, and creative projects",
-      icon: <Sparkles className="w-16 h-16 text-blue-600 mx-auto mb-4" />,
-      primaryBtn: "Generate Images",
-      secondaryBtn: "View Gallery",
-      primaryUrl: "/ai/generate-images",
-    },
-    {
-      title: "Write Like a Pro",
-      highlight: "AI Writing",
-      description:
-        "Craft compelling articles, blog posts, and copy with AI-powered writing assistance. Beat writer's block and boost productivity",
-      icon: <Zap className="w-16 h-16 text-blue-600 mx-auto mb-4" />,
-      primaryBtn: "Start Writing",
-      secondaryBtn: "See Examples",
-      primaryUrl: "/ai/write-article",
-    },
+  const handleLaunch = () => {
+    if (user) {
+      navigate("/ai");
+    } else {
+      openSignIn();
+    }
+  };
+
+  const navItems = [
+    { label: "Features", href: "#features" },
+    { label: "Showcase", href: "#reviews" },
+    { label: "Pricing", href: "#pricing" },
+    { label: "Community", href: user ? "/ai/community" : "#reviews", onClick: (e) => {
+      if (user) {
+        e.preventDefault();
+        navigate("/ai/community");
+      }
+    }},
   ];
 
-  // Auto-rotate carousel every 3 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [slides.length]);
-
-  const goToSlide = (index) => {
-    setCurrentSlide(index);
-  };
-
-  const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % slides.length);
-  };
-
-  const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
-  };
-
-  const currentSlideData = slides[currentSlide];
-
-  const handleNavigateToAI = () => {
-    // Use your original navigate function with the current slide's URL
-    navigate(currentSlideData.primaryUrl);
-  };
-
   return (
-    <div
-      id="hero"
-      className="px-4 sm:px-20 xl:px-32 relative inline-flex flex-col w-full justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 min-h-screen overflow-hidden"
-    >
-      {/* Navigation arrows */}
-      <button
-        onClick={prevSlide}
-        style={{ cursor: "pointer" }}
-        className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-full p-2 transition-all duration-200 hover:scale-110 shadow-lg"
-      >
-        <ChevronLeft className="w-6 h-6 text-gray-700" />
-      </button>
-
-      <button
-        onClick={nextSlide}
-        style={{ cursor: "pointer" }}
-        className="absolute right-4 top-1/2 transform -translate-y-1/2 z-10 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-full p-2 transition-all duration-200 hover:scale-110 shadow-lg"
-      >
-        <ChevronRight className="w-6 h-6 text-gray-700" />
-      </button>
-
-      {/* Carousel content */}
-      <div className="text-center mb-6 relative">
-        {/* Animated icon */}
-        <div
-          key={currentSlide}
-          className="mb-4 animate-bounce"
-          style={{
-            animation: "iconPulse 0.6s ease-in-out",
-          }}
-        >
-          {currentSlideData.icon}
-        </div>
-
-        {/* Title with smooth transition */}
-        <div
-          key={`title-${currentSlide}`}
-          className="transition-all duration-500 ease-in-out transform"
-          style={{
-            animation: "fadeInUp 0.6s ease-out",
-          }}
-        >
-          <h1 className="text-3xl sm:text-5xl md:text-6xl 2xl:text-7xl font-semibold mx-auto leading-[1.2]">
-            {currentSlideData.title.split(" ").slice(0, -2).join(" ")} <br />
-            with{" "}
-            <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent font-bold">
-              {currentSlideData.highlight}
-            </span>
-          </h1>
-        </div>
-
-        {/* Description with fade transition */}
-        <div
-          key={`desc-${currentSlide}`}
-          className="transition-all duration-500 ease-in-out"
-          style={{
-            animation: "fadeInUp 0.8s ease-out",
-          }}
-        >
-          <p className="mt-4 max-w-xs sm:max-w-lg 2xl:max-w-xl m-auto max-sm:text-xs text-gray-600">
-            {currentSlideData.description}
-          </p>
-        </div>
-      </div>
-
-      {/* Buttons */}
-      <div
-        key={`buttons-${currentSlide}`}
-        className="flex flex-wrap justify-center gap-4 text-sm max-sm:text-xs"
-        style={{
-          animation: "fadeInUp 1s ease-out",
-        }}
-      >
-        <button
-          onClick={handleNavigateToAI}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-10 py-3 rounded-lg hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-purple-700"
-          style={{ cursor: "pointer" }}
-        >
-          {currentSlideData.primaryBtn}
-        </button>
-        <button
-          className="bg-white px-10 py-3 rounded-lg border border-gray-300 hover:scale-105 active:scale-95 transition-all duration-200 hover:shadow-lg hover:bg-gray-50"
-          style={{ cursor: "pointer" }}
-        >
-          {currentSlideData.secondaryBtn}
-        </button>
-      </div>
-
-      {/* Carousel dots indicator */}
-      <div className="flex justify-center gap-3 mt-8">
-        {slides.map((_, index) => (
-          <button
-            key={index}
-            onClick={() => goToSlide(index)}
-            style={{ cursor: "pointer" }}
-            className={`w-3 h-3 rounded-full transition-all duration-300 ${
-              currentSlide === index
-                ? "bg-blue-600 scale-125 shadow-md"
-                : "bg-gray-300 hover:bg-gray-400"
-            }`}
-          />
-        ))}
-      </div>
-
-      {/* Trust indicator */}
-      <div className="flex items-center gap-4 mt-6 mx-auto text-gray-600">
-        <Users className="h-8 w-8 text-blue-600" />
-        <span>Trusted by 10k+ People</span>
-      </div>
-
-      {/* Progress bar for current slide */}
-      <div className="absolute bottom-0 left-0 w-full h-1 bg-gray-200">
-        <div
-          className="h-full bg-gradient-to-r from-blue-600 to-purple-600 transition-all duration-75 ease-linear"
-          style={{
-            width: `${((currentSlide + 1) / slides.length) * 100}%`,
-          }}
+    <section id="hero" className="w-full min-h-screen p-2 sm:p-4 pt-3 sm:pt-4">
+      <div className="relative h-[94vh] min-h-[620px] w-full overflow-hidden rounded-2xl md:rounded-[2.5rem] border border-white/10 shadow-2xl bg-zinc-950">
+        
+        {/* Seamless dual-buffer infinity loop background video */}
+        <SeamlessVideo
+          src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260405_170732_8a9ccda6-5cff-4628-b164-059c500a2b41.mp4"
+          className="absolute inset-0 h-full w-full"
         />
+
+        {/* Noise overlay */}
+        <div className="noise-overlay pointer-events-none absolute inset-0 opacity-[0.6] mix-blend-overlay" />
+
+        {/* Ambient Gradient Glows */}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/70 via-black/30 to-black/90" />
+
+        {/* Floating Minimal Capsule Nav */}
+        <nav className="absolute left-1/2 top-0 z-30 -translate-x-1/2">
+          <div className="flex items-center gap-3 sm:gap-6 md:gap-10 rounded-b-2xl md:rounded-b-3xl bg-black/80 backdrop-blur-xl border-x border-b border-white/10 px-5 py-2.5 shadow-2xl">
+            {navItems.map((item, idx) => (
+              <a
+                key={idx}
+                href={item.href}
+                onClick={item.onClick}
+                className="text-[11px] sm:text-xs md:text-sm font-medium tracking-wide transition-colors text-[#E1E0CC]/70 hover:text-[#E1E0CC] cursor-pointer"
+              >
+                {item.label}
+              </a>
+            ))}
+          </div>
+        </nav>
+
+        {/* Hero content grid */}
+        <div className="absolute bottom-0 left-0 right-0 px-4 pb-6 sm:px-8 md:px-12 lg:pb-10 z-20">
+          <div className="grid grid-cols-12 items-end gap-6">
+            
+            {/* Massive Display Title */}
+            <div className="col-span-12 lg:col-span-8">
+              <h1
+                className="font-medium leading-[0.82] tracking-[-0.06em] text-[24vw] sm:text-[22vw] md:text-[20vw] lg:text-[17vw] xl:text-[16vw] select-none drop-shadow-sm"
+                style={{ color: "#E1E0CC" }}
+              >
+                <WordsPullUp text="ZeeAI" showAsterisk />
+              </h1>
+            </div>
+
+            {/* Subtitle & Dynamic CTA */}
+            <div className="col-span-12 flex flex-col gap-5 pb-2 lg:col-span-4 lg:pb-6">
+              
+              <motion.p
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.8, delay: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                className="text-xs sm:text-sm md:text-base text-[#E1E0CC]/80 font-light leading-relaxed max-w-md"
+              >
+                A unified generative workspace for articles, high-resolution imagery, object manipulation, and professional evaluation. Built for speed, clarity, and precision.
+              </motion.p>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <motion.button
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.8, delay: 0.65, ease: [0.16, 1, 0.3, 1] }}
+                  onClick={handleLaunch}
+                  className="group inline-flex items-center gap-3 self-start rounded-full bg-[#E1E0CC] py-1.5 pl-6 pr-1.5 text-sm font-semibold text-black transition-all hover:bg-white hover:gap-4 active:scale-95 shadow-xl cursor-pointer"
+                >
+                  <span>{user ? "Open Studio" : "Start Creating"}</span>
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black transition-transform group-hover:scale-110 sm:h-10 sm:w-10">
+                    <ArrowRight className="h-4 w-4 text-[#E1E0CC]" />
+                  </span>
+                </motion.button>
+
+                <motion.a
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.8, delay: 0.75, ease: [0.16, 1, 0.3, 1] }}
+                  href="#features"
+                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full text-xs sm:text-sm font-medium text-[#E1E0CC]/75 hover:text-white border border-white/10 hover:border-white/25 bg-black/40 backdrop-blur-md transition-all active:scale-95 cursor-pointer"
+                >
+                  <span>Explore Capabilities</span>
+                  <ChevronRight className="w-3.5 h-3.5 text-[#E1E0CC]/70" />
+                </motion.a>
+              </div>
+
+            </div>
+          </div>
+
+          {/* Bottom Tool Pills */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.9, ease: [0.16, 1, 0.3, 1] }}
+            className="mt-8 pt-4 border-t border-white/10 flex items-center gap-2 overflow-x-auto no-scrollbar"
+          >
+            <span className="text-[11px] uppercase tracking-wider text-zinc-500 font-mono flex-shrink-0 mr-2">Workspace Tools:</span>
+            {toolHighlights.map((tool, idx) => (
+              <button
+                key={idx}
+                onClick={() => user ? navigate(tool.path) : openSignIn()}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.08] text-[#E1E0CC]/80 text-xs flex-shrink-0 hover:bg-white/[0.1] hover:text-white transition-colors cursor-pointer"
+              >
+                <tool.icon className="w-3 h-3 text-[#E1E0CC]/70" />
+                <span>{tool.label}</span>
+              </button>
+            ))}
+          </motion.div>
+
+        </div>
       </div>
-
-      {/* Floating elements for extra visual appeal */}
-      <div className="absolute top-20 left-10 w-20 h-20 bg-blue-200 rounded-full opacity-20 animate-pulse"></div>
-      <div
-        className="absolute top-40 right-20 w-16 h-16 bg-purple-200 rounded-full opacity-20 animate-pulse"
-        style={{ animationDelay: "1s" }}
-      ></div>
-      <div
-        className="absolute bottom-40 left-20 w-12 h-12 bg-pink-200 rounded-full opacity-20 animate-pulse"
-        style={{ animationDelay: "2s" }}
-      ></div>
-
-      <style jsx>{`
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes iconPulse {
-          0% {
-            opacity: 0;
-            transform: scale(0.8) translateY(10px);
-          }
-          100% {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
-        }
-      `}</style>
-    </div>
+    </section>
   );
 };
 

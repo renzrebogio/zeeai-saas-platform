@@ -3,11 +3,10 @@ import { assets } from "../assets/assets";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight,
-  Home,
   Sparkles,
-  Star,
+  LayoutGrid,
   CreditCard,
-  Users,
+  MessageSquareQuote,
 } from "lucide-react";
 import { useClerk, UserButton, useUser } from "@clerk/clerk-react";
 
@@ -15,30 +14,17 @@ const Navbar = () => {
   const navigate = useNavigate();
   const { user } = useUser();
   const { openSignIn } = useClerk();
-  const [activeSection, setActiveSection] = useState("");
+  const [scrolled, setScrolled] = useState(false);
+  const [activeSection, setActiveSection] = useState("hero");
 
-  const scrollToSection = (sectionId) => {
-    const element = document.getElementById(sectionId);
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth" });
-      setActiveSection(sectionId);
-    }
-  };
-
-  // Track active section on scroll
   useEffect(() => {
     const handleScroll = () => {
-      const sections = ["hero", "features", "reviews", "pricing", "about"];
-      const scrollPosition = window.scrollY + 100; // Offset for navbar height
+      setScrolled(window.scrollY > 40);
 
-      // Special case for hero section - if we're at the top
-      if (scrollPosition < 200) {
-        setActiveSection("hero");
-        return;
-      }
+      const sections = ["hero", "features", "reviews", "pricing"];
+      const scrollPosition = window.scrollY + 140;
 
-      for (const sectionId of sections.slice(1)) {
-        // Skip hero for normal scroll detection
+      for (const sectionId of sections) {
         const element = document.getElementById(sectionId);
         if (element) {
           const { offsetTop, offsetHeight } = element;
@@ -54,129 +40,86 @@ const Navbar = () => {
     };
 
     window.addEventListener("scroll", handleScroll);
-    handleScroll(); // Check initial position
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const scrollToSection = (sectionId) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth" });
+      setActiveSection(sectionId);
+    }
+  };
+
   return (
-    <div className="fixed z-50 w-full backdrop-blur-2xl flex items-center py-3 px-4 sm:px-20 xl:px-32">
-      {/* Logo */}
-      <div className="flex-shrink-0">
-        <img
-          src={assets.final_logo}
-          alt="logo"
-          className="w-32 sm:w-50 cursor-pointer"
+    <header
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 px-4 sm:px-10 lg:px-16 ${
+        scrolled
+          ? "py-3 bg-black/80 backdrop-blur-xl border-b border-white/[0.08] shadow-2xl"
+          : "py-5 bg-transparent"
+      }`}
+    >
+      <div className="max-w-7xl mx-auto flex items-center justify-between">
+        {/* Original ZeeAI Brand Logo Asset */}
+        <div
           onClick={() => navigate("/")}
-        />
-      </div>
-
-      {/* Navigation Links - Centered */}
-      <nav className="hidden md:flex flex-1 justify-center">
-        <div className="flex items-center space-x-6">
-          <button
-            onClick={() => scrollToSection("hero")}
-            className={`flex flex-col items-center py-2 px-3 rounded-lg transition-all duration-200 cursor-pointer group ${
-              activeSection === "hero"
-                ? "text-primary bg-primary/10"
-                : "text-gray-600 hover:text-primary hover:bg-primary/5"
-            }`}
-          >
-            <Home
-              className={`w-5 h-5 mb-1 transition-transform duration-200 ${
-                activeSection === "hero" ? "scale-110" : "group-hover:scale-110"
-              }`}
-            />
-            <span className="text-xs font-medium">Home</span>
-          </button>
-
-          <button
-            onClick={() => scrollToSection("features")}
-            className={`flex flex-col items-center py-2 px-3 rounded-lg transition-all duration-200 cursor-pointer group ${
-              activeSection === "features"
-                ? "text-primary bg-primary/10"
-                : "text-gray-600 hover:text-primary hover:bg-primary/5"
-            }`}
-          >
-            <Sparkles
-              className={`w-5 h-5 mb-1 transition-transform duration-200 ${
-                activeSection === "features"
-                  ? "scale-110"
-                  : "group-hover:scale-110"
-              }`}
-            />
-            <span className="text-xs font-medium">Features</span>
-          </button>
-
-          <button
-            onClick={() => scrollToSection("reviews")}
-            className={`flex flex-col items-center py-2 px-3 rounded-lg transition-all duration-200 cursor-pointer group ${
-              activeSection === "reviews"
-                ? "text-primary bg-primary/10"
-                : "text-gray-600 hover:text-primary hover:bg-primary/5"
-            }`}
-          >
-            <Star
-              className={`w-5 h-5 mb-1 transition-transform duration-200 ${
-                activeSection === "reviews"
-                  ? "scale-110"
-                  : "group-hover:scale-110"
-              }`}
-            />
-            <span className="text-xs font-medium">Reviews</span>
-          </button>
-
-          <button
-            onClick={() => scrollToSection("pricing")}
-            className={`flex flex-col items-center py-2 px-3 rounded-lg transition-all duration-200 cursor-pointer group ${
-              activeSection === "pricing"
-                ? "text-primary bg-primary/10"
-                : "text-gray-600 hover:text-primary hover:bg-primary/5"
-            }`}
-          >
-            <CreditCard
-              className={`w-5 h-5 mb-1 transition-transform duration-200 ${
-                activeSection === "pricing"
-                  ? "scale-110"
-                  : "group-hover:scale-110"
-              }`}
-            />
-            <span className="text-xs font-medium">Pricing</span>
-          </button>
-
-          <button
-            onClick={() => scrollToSection("about")}
-            className={`flex flex-col items-center py-2 px-3 rounded-lg transition-all duration-200 cursor-pointer group ${
-              activeSection === "about"
-                ? "text-primary bg-primary/10"
-                : "text-gray-600 hover:text-primary hover:bg-primary/5"
-            }`}
-          >
-            <Users
-              className={`w-5 h-5 mb-1 transition-transform duration-200 ${
-                activeSection === "about"
-                  ? "scale-110"
-                  : "group-hover:scale-110"
-              }`}
-            />
-            <span className="text-xs font-medium">About Us</span>
-          </button>
+          className="flex items-center cursor-pointer group"
+        >
+          <img
+            src={assets.final_logo}
+            alt="ZeeAI Logo"
+            className="h-8 sm:h-9 md:h-10 w-auto object-contain transition-transform duration-200 group-hover:scale-105 active:scale-95"
+          />
         </div>
-      </nav>
 
-      {/* User Section */}
-      <div className="flex-shrink-0">
-        {user ? (
-          <UserButton />
-        ) : (
-          <button
-            onClick={openSignIn}
-            className="flex items-center gap-2 rounded-full text-sm cursor-pointer bg-primary text-white px-10 py-2.5"
-          >
-            Get Started <ArrowRight className="w-4 h-4" />
-          </button>
-        )}
+        {/* Center Pill Navigation */}
+        <nav className="hidden md:flex items-center gap-1 p-1 rounded-full bg-zinc-900/80 border border-white/10 backdrop-blur-lg shadow-inner">
+          {[
+            { id: "hero", label: "Overview", icon: Sparkles },
+            { id: "features", label: "Capabilities", icon: LayoutGrid },
+            { id: "reviews", label: "Showcase", icon: MessageSquareQuote },
+            { id: "pricing", label: "Pricing", icon: CreditCard },
+          ].map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => scrollToSection(id)}
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                activeSection === id
+                  ? "bg-white/10 text-white shadow-sm border border-white/10"
+                  : "text-zinc-400 hover:text-zinc-200 hover:bg-white/5"
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span>{label}</span>
+            </button>
+          ))}
+        </nav>
+
+        {/* Right CTA / User Section */}
+        <div className="flex items-center gap-3">
+          {user ? (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate("/ai")}
+                className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 transition-all cursor-pointer"
+              >
+                <span>Studio</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+              <UserButton afterSignOutUrl="/" />
+            </div>
+          ) : (
+            <button
+              onClick={openSignIn}
+              className="inline-flex items-center gap-2 rounded-full text-xs sm:text-sm font-medium bg-[#E1E0CC] hover:bg-white text-black px-5 py-2 transition-all shadow-lg hover:shadow-cyan-500/10 active:scale-95 cursor-pointer"
+            >
+              <span>Sign In</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
-    </div>
+    </header>
   );
 };
 
